@@ -69,6 +69,12 @@ Marc Mengel E<lt>F<mengel@fnal.gov>E<gt>
 Modified to use qr// (and some other minor speedups) and made callable
 as a standalone script
 
+=item Marc Mengel E<lt>F<mengel@fnal.gov>E<gt> -- v1.3 Oct 2000
+
+Bugfixes for 
+empty components (e.g. C<foo//bar>), and 
+adjacent wildcards (e.g. x?? y** or x?*).
+
 =back
 
 =cut
@@ -154,13 +160,13 @@ sub glob($) {
 	s/([+.|])/\\$1/go;
 
 	# handle * and ?
-	s/(\A|[^\\])([*?])/$1.$2/go;
-
+	s/(?<!\\)(\*)/.*/go;
+	s/(?<!\\)(\?)/./go;
 
 	# deal with dot files
 	if ( $hidedotfiles ) {
 	    s/(\A|$dirsep)\.\*/$1(?:[^.].*)?/go;
-	    s/(\A|$dirsep)\./$1\[\^.\]?/go;
+	    s/(\A|$dirsep)\./$1\[\^.\]/go;
 	    s/(\A|$dirsep)\[\^([^].]*)\]/$1\[\^\\.$2\]/go;
 	}
 
@@ -186,10 +192,16 @@ sub recurseglob($ $ @) {
     my(@res) = ();
     my($re, $anymatches, @names);
 
+
     if ( @comps == 0 ) {
         # bottom of recursion, just return the path 
         chop($dirname);  # always has gratiutous trailing slash
         @res = ($dirname);
+    } elsif ($comps[0] eq '') {
+        shift(@comps);
+	unshift(@res, &recurseglob( "$dir$dirsep", 
+				    "$dirname$dirsep",
+				    @comps ));
     } else {
         $re = '\A' . shift(@comps) . '\Z';
 
